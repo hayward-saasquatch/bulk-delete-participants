@@ -1,0 +1,6 @@
+accountId,id,firstName,lastName,email,doNotTrack
+abc_123,abc_123,John,Doe,john@example.com,
+abc_124,abc_124,,,,
+abc_126,abc_126,,,,
+abc_127,abc_127,,,,
+abc_132,abc_132,,,,TRUE
