@@ -13,7 +13,8 @@ args = parser.parse_args()
 
 #default to deleting the full account
 APIMethod = "account"
-doNotTrack = ''
+#set the default option for which do nottrack config to what is in the file
+doNotTrack = 'file'
 
 if args.apiKey: apiKey = args.apiKey
 if args.tenantAlias: tenantAlias = args.tenantAlias
@@ -118,17 +119,24 @@ def main():
             #print(reader)
 
             for row in reader:
-                print(row['id'], row['firstName'])
+                #print(row['id'], row['firstName'])
 
                 #print(row)
 
                 #try:
                 print("Deleting participant - accountId:`{}` userId:`{}`".format(row['accountId'], row['id']))
 
+                #TODO: remove reliance on having a `doNotTrack` column
+
+                #if the `doNotTrack` parameter was set when running the script. Override choice in csv and mark all as do not track
                 if doNotTrack == "all":
                     response = sendDelete(row['accountId'], row['id'], True)
-                elif row['doNotTrack'] == "true" or row['doNotTrack'] == "TRUE" and doNotTrack == "file":
-                    response = sendDelete(row['accountId'], row['id'], True)
+                elif doNotTrack == "file":
+                    #if row['doNotTrack']: 
+                    if 'doNotTrack' in row.keys():
+                        if row['doNotTrack'] == "true" or row['doNotTrack'] == "TRUE":
+                            response = sendDelete(row['accountId'], row['id'], True)
+                    else: response = sendDelete(row['accountId'], row['id'])
                 else:
                     response = sendDelete(row['accountId'], row['id'])
 
