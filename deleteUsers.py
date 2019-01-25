@@ -105,6 +105,89 @@ def markDeleted(row, response):
     #print(importErrors)
 
 
+
+def processDeletion([id,accountId]):
+    #try:
+    print("Deleting participant - accountId:`{}` userId:`{}`".format(accountId, id))
+
+    #TODO: remove reliance on having a `doNotTrack` column
+
+    #if the `doNotTrack` parameter was set when running the script. Override choice in csv and mark all as do not track
+    if doNotTrack == "all":
+        response = sendDelete(accountId, id, True)
+    elif doNotTrack == "file":
+        #if row['doNotTrack']: 
+        if 'doNotTrack' in row.keys():
+            if row['doNotTrack'] == "true" or row['doNotTrack'] == "TRUE":
+                response = sendDelete(accountId, id, True)
+        else: response = sendDelete(accountId, id)
+    else:
+        response = sendDelete(accountId, id)
+
+    #TODO: pass back the HTTP error to include in the output
+
+    #print(type(response))
+    #if type(response) == "JSON":
+
+
+    #means there was an error and the usr was unable to be deleted 'requests.exceptions.HTTPError' etc
+    if response:
+        print(response)
+
+        markDeleted(row, response)
+
+        print("Unable to delete participant: accountId:`{}` userId:`{}`, adding to error output file".format(accountId, id))
+
+    #else:
+        #print("printing repsponse: ", response)
+
+
+
+
+#function to return a list or account/user ID pairs that should be deleted
+def checkDuplicates(reader, rowToCheck):
+
+    duplicateList = []
+    deletionList = []
+
+    for row in reader:
+
+        #if this row contains the same email address, we should check if it needs to be deleted
+        if row['email'] == rowToCheck['email']:
+
+            duplicateList.append(row)
+
+    #if there are duplicates
+    if len(duplicateList) > 1:
+
+        #set the dateCreated of the first entry in the list to be the newest entry
+        newestEntryDate = duplicateList[0]['dateCreated']
+
+        #loop through each entry in the list to see if it is newer than the first one, reset the newest value if it is
+        for item in duplicateList:
+            #this item is newer than the initial new value, and the account doesnt have cookie IDs
+            if item['dateCreated'] > newestEntryDate and len(item['id']) < 10 and len(item['accountId'] < 10):
+                newestEntryDate = item['dateCreated']
+
+        #compile a list of entries that are not the newest
+        for item in duplicateList:
+            if item['dateCreated'] < newestEntryDate:
+                duplicateList.append([item['id'],item['accountId']])
+
+        
+        
+        
+        
+        return duplicateList
+
+
+
+    #if there is only one entry in the list, return null as there are no users to delete
+    else: return None
+
+
+
+
 def main():
 
     try:
@@ -123,39 +206,16 @@ def main():
 
                 #print(row)
 
-                #try:
-                print("Deleting participant - accountId:`{}` userId:`{}`".format(row['accountId'], row['id']))
 
-                #TODO: remove reliance on having a `doNotTrack` column
+                participantsToDelete = checkDuplicates(row)
 
-                #if the `doNotTrack` parameter was set when running the script. Override choice in csv and mark all as do not track
-                if doNotTrack == "all":
-                    response = sendDelete(row['accountId'], row['id'], True)
-                elif doNotTrack == "file":
-                    #if row['doNotTrack']: 
-                    if 'doNotTrack' in row.keys():
-                        if row['doNotTrack'] == "true" or row['doNotTrack'] == "TRUE":
-                            response = sendDelete(row['accountId'], row['id'], True)
-                    else: response = sendDelete(row['accountId'], row['id'])
-                else:
-                    response = sendDelete(row['accountId'], row['id'])
+                if participantsToDelete:
+                    for item in participantsToDelete:
+                        processDeletion(item)
 
-                #TODO: pass back the HTTP error to include in the output
+                
 
-                #print(type(response))
-                #if type(response) == "JSON":
-
-
-                #means there was an error and the usr was unable to be deleted 'requests.exceptions.HTTPError' etc
-                if response:
-                    print(response)
-
-                    markDeleted(row, response)
-
-                    print("Unable to delete participant: accountId:`{}` userId:`{}`, adding to error output file".format(row['accountId'], row['id']))
-
-                #else:
-                    #print("printing repsponse: ", response)
+                
 
 
 
