@@ -24,28 +24,34 @@ if args.inputFile: inputFile = args.inputFile
 else:
     rootdir = '.'
 
-#TODO: create an output file as a inputfilename_errors.csv
+# create an output file as a inputfilename_errors.csv
 tempOutputFile = inputFile.rstrip(".csv")
 outputFile = tempOutputFile + "_errors.csv"
 
+# set the default for what number to add to the output file name if the default value is already taken
 fileNameCount = 2
 
+# loop through till a file name is found for 
 while True:
     print(outputFile)
+    
+    # if the selected filename doesnt already exist, then we have our output file name and can exit this loop
     if not os.path.isfile(outputFile):
         break
+    # if the file name is already taken, add the next number to the end of the name, and loop back through
     else:
         outputFile = tempOutputFile + "_errors_" + str(fileNameCount) + ".csv"
         fileNameCount += 1
 
-
-
 cleanDir = re.compile(r"[./]")
 
-importErrors = []
+# initially empty list of user deletion errors
+deletionErrors = []
 
+# function for making the request to saasquatch to delete the user. Default value for do not track (if not passed in) is false
 def sendDelete(accountId, userId, thisUserdoNotTrack=False):
-
+    
+    # configure which endpoint to use (whether to delete just the user, or the user and the underlying account)
     if APIMethod == "user":
         url = 'https://app.referralsaasquatch.com/api/v1/'+ tenantAlias +'/open/account/'+ accountId +'/user/' + userId
     else:
@@ -82,28 +88,22 @@ def sendDelete(accountId, userId, thisUserdoNotTrack=False):
 
         #print("Unable to delete participant: {}".format(e))
 
-
-# except:
-#     print("Unexpected error:", sys.exc_info()[0])
+    # except:
+    #     print("Unexpected error:", sys.exc_info()[0])
+    
+    # if there were no errors, return None
     return None
 
 
-#add users to a list of participants that were unable to be deleted
+# add users to a list of participants that were unable to be deleted
 def markDeleted(row, response):
     #if there are already entries in the dictionary
-    #if importErrors:
+    #if deletionErrors:
     tempErrDict = {}
     tempErrDict = {"id": row['id'], "accountId": row['accountId'], "error": str(response)}
-    importErrors.append(tempErrDict)
-        #print("a")
-
-    #if the dictionary is still empty
-    # else:
-    #     importErrors.append({"id": row['id'], "accountId": row['accountId'], "error": response})
-
-
-    #print(importErrors)
-
+    
+    # append the entry for the participant that was unable to be deleted to the list 
+    deletionErrors.append(tempErrDict)
 
 def main():
 
@@ -117,7 +117,8 @@ def main():
             reader = csv.DictReader(f)
 
             #print(reader)
-
+            
+            # look through each entry in the file of participants to delete
             for row in reader:
                 #print(row['id'], row['firstName'])
 
@@ -127,16 +128,28 @@ def main():
                 print("Deleting participant - accountId:`{}` userId:`{}`".format(row['accountId'], row['id']))
 
                 #TODO: remove reliance on having a `doNotTrack` column
-
-                #if the `doNotTrack` parameter was set when running the script. Override choice in csv and mark all as do not track
+                
+                response = None
+                
+                # if the `doNotTrack` parameter was set when running the script. Override choice in csv and mark all as do not track
                 if doNotTrack == "all":
                     response = sendDelete(row['accountId'], row['id'], True)
+                
+                # if `doNotTrack` is set to take the value from the file (the default if not passed in as an arguement)
                 elif doNotTrack == "file":
                     #if row['doNotTrack']: 
+                    
+                    # check if `doNotTrack` is one of the column headers
                     if 'doNotTrack' in row.keys():
-                        if row['doNotTrack'] == "true" or row['doNotTrack'] == "TRUE":
+                        
+                        # if there is a `doNotTrack` column, and that column one of the values of `True`, `TRUE`, or `true`, then include the do not track flag in the request 
+                        if row['doNotTrack'] == "true" or row['doNotTrack'] == "TRUE" or row['doNotTrack'] == "True":
                             response = sendDelete(row['accountId'], row['id'], True)
+                    
+                    # if there is no `doNotTrack` column, assume the user should not be marked do not track
                     else: response = sendDelete(row['accountId'], row['id'])
+                
+                # if, somehow, do not track is not set to `all` or `file`, then do not include the flag
                 else:
                     response = sendDelete(row['accountId'], row['id'])
 
@@ -146,7 +159,7 @@ def main():
                 #if type(response) == "JSON":
 
 
-                #means there was an error and the usr was unable to be deleted 'requests.exceptions.HTTPError' etc
+                # if the response from the `sendDelete` function was not `None`, this means there was an error and the usr was unable to be deleted ('requests.exceptions.HTTPError') etc
                 if response:
                     print(response)
 
@@ -173,11 +186,11 @@ def main():
             fieldnames = ['id', 'accountId', 'error']
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
             writer.writeheader()
-            for row in importErrors:
+            for row in deletionErrors:
                writer.writerow(row)
 
     except IOError:
-        print("Could not read file:", inputFile)
+        print("Could not write errors to file:", inputFile)
 
 
 if __name__ == '__main__':
