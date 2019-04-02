@@ -22,3 +22,5 @@ The following steps outline how to setup a linux system to run this script (base
 3. From the top level of the project folder, create a new virtual environment `virtualenv -p /usr/bin/python3.6 venv`. This example assumes the version of python you install was 3.6, so please plug in the version of python you used in step 1.
 4. Activate your new virutal environment: `source venv/bin/activate`
 5. Install the python packages you will need to run this script `pip install -r requirements.txt`
+
+Once you are done working in the virtual environment (otherwise it will use this virtualenv for running python elsewhere in your system), you can deactivate for the time being using the command `deactivate`
